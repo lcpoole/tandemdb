@@ -1,0 +1,370 @@
+# DEVELOPED ONLY
+
+# 1. Create percent table for insert into triangulation below; then export as percent_isic_isco_sex
+
+SELECT percent_isic_sex_developed.country, percent_isic_sex_developed.isic_id, percent_isco08_sex.isco_id,
+  sum(percent_isic_sex_developed.percent_emp_f+percent_isco08_sex.percent_emp_f)/2 AS percent_employee_f,
+  sum(percent_isic_sex_developed.percent_emp_m+percent_isco08_sex.percent_emp_m)/2 AS percent_employee_m
+FROM percent_isic_sex_developed
+JOIN percent_isco08_sex ON percent_isco08_sex.country = percent_isic_sex_developed.country
+WHERE percent_isco08_sex.country=percent_isic_sex_developed.country
+GROUP BY percent_isic_sex_developed.country, percent_isic_sex_developed.isic_id, percent_isco08_sex.isco_id
+
+# 2. Triangulate Sex into ISIC ISCO data; then export into employment_isic_isco_sex
+
+SELECT developed_employment_isic_isco.country, developed_employment_isic_isco.isic_version, developed_employment_isic_isco.isic_id, developed_employment_isic_isco.isco_version, developed_employment_isic_isco.isco_id, developed_employment_isic_isco.data_date,
+  developed_employment_isic_isco.no_employees AS no_employees_total,
+  round(sum(developed_employment_isic_isco.no_employees*percent_isic_isco_sex.percent_employee_f)) AS no_employees_f,
+  round(sum(developed_employment_isic_isco.no_employees*percent_isic_isco_sex.percent_employee_m)) AS no_employees_m,
+  developed_employment_isic_isco.techCurve_year
+FROM developed_employment_isic_isco
+JOIN percent_isic_isco_sex ON percent_isic_isco_sex.country=developed_employment_isic_isco.country AND percent_isic_isco_sex.isic_id=developed_employment_isic_isco.isic_id AND percent_isic_isco_sex.isco_id=developed_employment_isic_isco.isco_id
+GROUP BY developed_employment_isic_isco.country, developed_employment_isic_isco.isic_id, developed_employment_isic_isco.isco_id, developed_employment_isic_isco.techCurve_year;
+
+# 3. Model Data; then insert into fwi_developed - TAM 1.0 - WAM 1.0 -
+
+SELECT employment_isic_isco_sex.techCurve_year, employment_isic_isco_sex.country, employment_isic_isco_sex.isic_id, employment_isic_isco_sex.isco_id,
+  employment_isic_isco_sex.no_employees_f,
+  sum(model_t_index_aug.atRisk_SAI_p*employment_isic_isco_sex.no_employees_f*tech_curves.techCurve_SAI)AS f_SAI_aug,
+  sum(model_t_index_aug.atRisk_PAI_p*employment_isic_isco_sex.no_employees_f*tech_curves.techCurve_PAI)AS f_PAI_aug,
+  sum(model_t_index_aug.atRisk_MR_p*employment_isic_isco_sex.no_employees_f*tech_curves.techCurve_MR)AS f_MR_aug,
+  sum(model_t_index_aug.atRisk_FR_p*employment_isic_isco_sex.no_employees_f*tech_curves.techCurve_FR)AS f_FR_aug,
+  sum(model_t_index_aug.atRisk_AM_p*employment_isic_isco_sex.no_employees_f*tech_curves.techCurve_AM)AS f_AM_aug,
+  sum(model_t_index_aut.atRisk_SAI_p*employment_isic_isco_sex.no_employees_f*tech_curves.techCurve_SAI)AS f_SAI_aut,
+  sum(model_t_index_aut.atRisk_PAI_p*employment_isic_isco_sex.no_employees_f*tech_curves.techCurve_PAI)AS f_PAI_aut,
+  sum(model_t_index_aut.atRisk_MR_p*employment_isic_isco_sex.no_employees_f*tech_curves.techCurve_MR)AS f_MR_aut,
+  sum(model_t_index_aut.atRisk_FR_p*employment_isic_isco_sex.no_employees_f*tech_curves.techCurve_FR)AS f_FR_aut,
+  sum(model_t_index_aut.atRisk_AM_p*employment_isic_isco_sex.no_employees_f*tech_curves.techCurve_AM)AS f_AM_aut,
+  employment_isic_isco_sex.no_employees_m,
+  sum(model_t_index_aug.atRisk_SAI_p*employment_isic_isco_sex.no_employees_m*tech_curves.techCurve_SAI)AS m_SAI_aug,
+  sum(model_t_index_aug.atRisk_PAI_p*employment_isic_isco_sex.no_employees_m*tech_curves.techCurve_PAI)AS m_PAI_aug,
+  sum(model_t_index_aug.atRisk_MR_p*employment_isic_isco_sex.no_employees_m*tech_curves.techCurve_MR)AS m_MR_aug,
+  sum(model_t_index_aug.atRisk_FR_p*employment_isic_isco_sex.no_employees_m*tech_curves.techCurve_FR)AS m_FR_aug,
+  sum(model_t_index_aug.atRisk_AM_p*employment_isic_isco_sex.no_employees_m*tech_curves.techCurve_AM)AS m_AM_aug,
+  sum(model_t_index_aut.atRisk_SAI_p*employment_isic_isco_sex.no_employees_m*tech_curves.techCurve_SAI)AS m_SAI_aut,
+  sum(model_t_index_aut.atRisk_PAI_p*employment_isic_isco_sex.no_employees_m*tech_curves.techCurve_PAI)AS m_PAI_aut,
+  sum(model_t_index_aut.atRisk_MR_p*employment_isic_isco_sex.no_employees_m*tech_curves.techCurve_MR)AS m_MR_aut,
+  sum(model_t_index_aut.atRisk_FR_p*employment_isic_isco_sex.no_employees_m*tech_curves.techCurve_FR)AS m_FR_aut,
+  sum(model_t_index_aut.atRisk_AM_p*employment_isic_isco_sex.no_employees_m*tech_curves.techCurve_AM)AS m_AM_aut
+FROM employment_isic_isco_sex
+JOIN model_t_index_aug ON model_t_index_aug.isic_id = employment_isic_isco_sex.isic_id AND model_t_index_aug.isco_id=employment_isic_isco_sex.isco_id
+JOIN model_t_index_aut ON model_t_index_aut.isic_id = employment_isic_isco_sex.isic_id AND model_t_index_aut.isco_id=employment_isic_isco_sex.isco_id
+JOIN tech_curves ON tech_curves.techCurve_year = employment_isic_isco_sex.techCurve_year
+WHERE employment_isic_isco_sex.isic_id=model_t_index_aug.isic_id AND employment_isic_isco_sex.isco_id=model_t_index_aug.isco_id AND employment_isic_isco_sex.techCurve_year=tech_curves.techCurve_year
+GROUP BY employment_isic_isco_sex.country, employment_isic_isco_sex.isic_id, employment_isic_isco_sex.isco_id, employment_isic_isco_sex.techCurve_year;
+
+# 3. Model Data; then insert into fwi_developed - TAM 2.0 - WAM 1.5 -
+
+
+CREATE TABLE IF NOT EXISTS fwi_usa (
+  techCurve_year INT(11),
+  country TEXT,
+  isic_id TEXT,
+  isco_id TEXT,
+  no_employees_f INT(11),
+  f_emp_atRisk_SAI_aug INT(11),
+  f_emp_atRisk_PAI_aug INT(11),
+  f_emp_atRisk_MR_aug INT(11),
+  f_emp_atRisk_FR_aug INT(11),
+  f_emp_atRisk_AM_aug INT(11),
+  f_emp_atRisk_SAI_aut INT(11),
+  f_emp_atRisk_PAI_aut INT(11),
+  f_emp_atRisk_MR_aut INT(11),
+  f_emp_atRisk_FR_aut INT(11),
+  f_emp_atRisk_AM_aut INT(11),
+  no_employees_m INT(11),
+  m_emp_atRisk_SAI_aug INT(11),
+  m_emp_atRisk_PAI_aug INT(11),
+  m_emp_atRisk_MR_aug INT(11),
+  m_emp_atRisk_FR_aug INT(11),
+  m_emp_atRisk_AM_aug INT(11),
+  m_emp_atRisk_SAI_aut INT(11),
+  m_emp_atRisk_PAI_aut INT(11),
+  m_emp_atRisk_MR_aut INT(11),
+  m_emp_atRisk_FR_aut INT(11),
+  m_emp_atRisk_AM_aut INT(11));
+
+
+INSERT INTO fwi_usa (techCurve_year, country, isic_id, isco_id, no_employees_f, f_emp_atRisk_SAI_aug, f_emp_atRisk_PAI_aug, f_emp_atRisk_MR_aug, f_emp_atRisk_FR_aug, f_emp_atRisk_AM_aug, f_emp_atRisk_SAI_aut, f_emp_atRisk_PAI_aut, f_emp_atRisk_MR_aut, f_emp_atRisk_FR_aut, f_emp_atRisk_AM_aut, no_employees_m, m_emp_atRisk_SAI_aug, m_emp_atRisk_PAI_aug, m_emp_atRisk_MR_aug, m_emp_atRisk_FR_aug, m_emp_atRisk_AM_aug, m_emp_atRisk_SAI_aut, m_emp_atRisk_PAI_aut, m_emp_atRisk_MR_aut, m_emp_atRisk_FR_aut, m_emp_atRisk_AM_aut)
+SELECT employment_isic_isco_sex.techCurve_year, employment_isic_isco_sex.country, employment_isic_isco_sex.isic_id, employment_isic_isco_sex.isco_id,
+  employment_isic_isco_sex.no_employees_f,
+  sum(model_t_index_aug2.atRisk_SAI_p*employment_isic_isco_sex.no_employees_f*world_techCurves.techCurve_SAI)AS f_SAI_aug,
+  sum(model_t_index_aug2.atRisk_PAI_p*employment_isic_isco_sex.no_employees_f*world_techCurves.techCurve_PAI)AS f_PAI_aug,
+  sum(model_t_index_aug2.atRisk_MR_p*employment_isic_isco_sex.no_employees_f*world_techCurves.techCurve_MR)AS f_MR_aug,
+  sum(model_t_index_aug2.atRisk_FR_p*employment_isic_isco_sex.no_employees_f*world_techCurves.techCurve_FR)AS f_FR_aug,
+  sum(model_t_index_aug2.atRisk_AM_p*employment_isic_isco_sex.no_employees_f*world_techCurves.techCurve_AM)AS f_AM_aug,
+  sum(model_t_index_aut3.atRisk_SAI_p*employment_isic_isco_sex.no_employees_f*world_techCurves.techCurve_SAI)AS f_SAI_aut,
+  sum(model_t_index_aut3.atRisk_PAI_p*employment_isic_isco_sex.no_employees_f*world_techCurves.techCurve_PAI)AS f_PAI_aut,
+  sum(model_t_index_aut3.atRisk_MR_p*employment_isic_isco_sex.no_employees_f*world_techCurves.techCurve_MR)AS f_MR_aut,
+  sum(model_t_index_aut3.atRisk_FR_p*employment_isic_isco_sex.no_employees_f*world_techCurves.techCurve_FR)AS f_FR_aut,
+  sum(model_t_index_aut3.atRisk_AM_p*employment_isic_isco_sex.no_employees_f*world_techCurves.techCurve_AM)AS f_AM_aut,
+  employment_isic_isco_sex.no_employees_m,
+  sum(model_t_index_aug2.atRisk_SAI_p*employment_isic_isco_sex.no_employees_m*world_techCurves.techCurve_SAI)AS m_SAI_aug,
+  sum(model_t_index_aug2.atRisk_PAI_p*employment_isic_isco_sex.no_employees_m*world_techCurves.techCurve_PAI)AS m_PAI_aug,
+  sum(model_t_index_aug2.atRisk_MR_p*employment_isic_isco_sex.no_employees_m*world_techCurves.techCurve_MR)AS m_MR_aug,
+  sum(model_t_index_aug2.atRisk_FR_p*employment_isic_isco_sex.no_employees_m*world_techCurves.techCurve_FR)AS m_FR_aug,
+  sum(model_t_index_aug2.atRisk_AM_p*employment_isic_isco_sex.no_employees_m*world_techCurves.techCurve_AM)AS m_AM_aug,
+  sum(model_t_index_aut3.atRisk_SAI_p*employment_isic_isco_sex.no_employees_m*world_techCurves.techCurve_SAI)AS m_SAI_aut,
+  sum(model_t_index_aut3.atRisk_PAI_p*employment_isic_isco_sex.no_employees_m*world_techCurves.techCurve_PAI)AS m_PAI_aut,
+  sum(model_t_index_aut3.atRisk_MR_p*employment_isic_isco_sex.no_employees_m*world_techCurves.techCurve_MR)AS m_MR_aut,
+  sum(model_t_index_aut3.atRisk_FR_p*employment_isic_isco_sex.no_employees_m*world_techCurves.techCurve_FR)AS m_FR_aut,
+  sum(model_t_index_aut3.atRisk_AM_p*employment_isic_isco_sex.no_employees_m*world_techCurves.techCurve_AM)AS m_AM_aut
+FROM employment_isic_isco_sex
+JOIN model_t_index_aug2 ON model_t_index_aug2.isic_id = employment_isic_isco_sex.isic_id AND model_t_index_aug2.isco_id=employment_isic_isco_sex.isco_id
+JOIN model_t_index_aut3 ON model_t_index_aut3.isic_id = employment_isic_isco_sex.isic_id AND model_t_index_aut3.isco_id=employment_isic_isco_sex.isco_id
+JOIN world_techCurves ON world_techCurves.techCurve_year = employment_isic_isco_sex.techCurve_year AND world_techCurves.tc_group = employment_isic_isco_sex.tc_group
+WHERE employment_isic_isco_sex.country="USA" AND employment_isic_isco_sex.isic_id=model_t_index_aug2.isic_id AND employment_isic_isco_sex.isco_id=model_t_index_aug2.isco_id AND employment_isic_isco_sex.techCurve_year=world_techCurves.techCurve_year
+GROUP BY employment_isic_isco_sex.country, employment_isic_isco_sex.isic_id, employment_isic_isco_sex.isco_id, employment_isic_isco_sex.techCurve_year;
+
+
+
+
+
+
+
+
+# FWI Steps  - UPDATE GENDER TABLES - FOR AGGREGATE ONLY (Investor Deck)
+
+# 1. Create percent table for insert into triangulation below; then export as percent_isic_isco_sex
+
+SELECT isic_sex.country, isic_sex.isic_id, isco_sex.isco_id,
+  sum(isic_sex.percent_emp_f+isco_sex.percent_emp_f)/2 AS percent_employee_f,
+  sum(isic_sex.percent_emp_m+isco_sex.percent_emp_m)/2 AS percent_employee_m
+FROM isic_sex
+JOIN isco_sex ON isco_sex.country = isic_sex.country
+WHERE isco_sex.country=isic_sex.country
+GROUP BY isic_sex.country, isic_sex.isic_id, isco_sex.isco_id
+
+# 2. Triangulate Sex into ISIC ISCO data; then export into employment_isic_isco_sex
+
+SELECT emp_isic4_isco.country, emp_isic4_isco.isic_version, emp_isic4_isco.isic_id, emp_isic4_isco.isco_version, emp_isic4_isco.isco_id, emp_isic4_isco.data_date,
+  emp_isic4_isco.no_employees AS no_employees_total,
+  round(sum(emp_isic4_isco.no_employees*isic_isco_sex.percent_employee_f)) AS no_employees_f,
+  round(sum(emp_isic4_isco.no_employees*isic_isco_sex.percent_employee_m)) AS no_employees_m,
+  emp_isic4_isco.techCurve_year, emp_isic4_isco.tc_group
+FROM emp_isic4_isco
+JOIN isic_isco_sex ON isic_isco_sex.country=emp_isic4_isco.country AND isic_isco_sex.isic_id=emp_isic4_isco.isic_id AND isic_isco_sex.isco_id=emp_isic4_isco.isco_id
+GROUP BY emp_isic4_isco.country, emp_isic4_isco.isic_id, emp_isic4_isco.isco_id, emp_isic4_isco.techCurve_year;
+
+# 3. Model employment against Tech Curves and Model T Index (Augmentation, Automation)   !!!! Export & Domestic Treated Differently !!!!  - TAM 2.0 - WAM 1.5 -
+
+SELECT emp_isic4_isco_sex.techCurve_year, emp_isic4_isco_sex.country, emp_isic4_isco_sex.isic_id, emp_isic4_isco_sex.isco_id,
+  emp_isic4_isco_sex.no_employees_f,
+  sum(model_t_index_aug2.atRisk_SAI_p*emp_isic4_isco_sex.no_employees_f*world_techCurves.techCurve_SAI)AS f_SAI_aug,
+  sum(model_t_index_aug2.atRisk_PAI_p*emp_isic4_isco_sex.no_employees_f*world_techCurves.techCurve_PAI)AS f_PAI_aug,
+  sum(model_t_index_aug2.atRisk_MR_p*emp_isic4_isco_sex.no_employees_f*world_techCurves.techCurve_MR)AS f_MR_aug,
+  sum(model_t_index_aug2.atRisk_FR_p*emp_isic4_isco_sex.no_employees_f*world_techCurves.techCurve_FR)AS f_FR_aug,
+  sum(model_t_index_aug2.atRisk_AM_p*emp_isic4_isco_sex.no_employees_f*world_techCurves.techCurve_AM)AS f_AM_aug,
+  sum(model_t_index_aut3.atRisk_SAI_p*emp_isic4_isco_sex.no_employees_f*world_techCurves.techCurve_SAI)AS f_SAI_aut,
+  sum(model_t_index_aut3.atRisk_PAI_p*emp_isic4_isco_sex.no_employees_f*world_techCurves.techCurve_PAI)AS f_PAI_aut,
+  sum(model_t_index_aut3.atRisk_MR_p*emp_isic4_isco_sex.no_employees_f*world_techCurves.techCurve_MR)AS f_MR_aut,
+  sum(model_t_index_aut3.atRisk_FR_p*emp_isic4_isco_sex.no_employees_f*world_techCurves.techCurve_FR)AS f_FR_aut,
+  sum(model_t_index_aut3.atRisk_AM_p*emp_isic4_isco_sex.no_employees_f*world_techCurves.techCurve_AM)AS f_AM_aut,
+  emp_isic4_isco_sex.no_employees_m,
+  sum(model_t_index_aug2.atRisk_SAI_p*emp_isic4_isco_sex.no_employees_m*world_techCurves.techCurve_SAI)AS m_SAI_aug,
+  sum(model_t_index_aug2.atRisk_PAI_p*emp_isic4_isco_sex.no_employees_m*world_techCurves.techCurve_PAI)AS m_PAI_aug,
+  sum(model_t_index_aug2.atRisk_MR_p*emp_isic4_isco_sex.no_employees_m*world_techCurves.techCurve_MR)AS m_MR_aug,
+  sum(model_t_index_aug2.atRisk_FR_p*emp_isic4_isco_sex.no_employees_m*world_techCurves.techCurve_FR)AS m_FR_aug,
+  sum(model_t_index_aug2.atRisk_AM_p*emp_isic4_isco_sex.no_employees_m*world_techCurves.techCurve_AM)AS m_AM_aug,
+  sum(model_t_index_aut3.atRisk_SAI_p*emp_isic4_isco_sex.no_employees_m*world_techCurves.techCurve_SAI)AS m_SAI_aut,
+  sum(model_t_index_aut3.atRisk_PAI_p*emp_isic4_isco_sex.no_employees_m*world_techCurves.techCurve_PAI)AS m_PAI_aut,
+  sum(model_t_index_aut3.atRisk_MR_p*emp_isic4_isco_sex.no_employees_m*world_techCurves.techCurve_MR)AS m_MR_aut,
+  sum(model_t_index_aut3.atRisk_FR_p*emp_isic4_isco_sex.no_employees_m*world_techCurves.techCurve_FR)AS m_FR_aut,
+  sum(model_t_index_aut3.atRisk_AM_p*emp_isic4_isco_sex.no_employees_m*world_techCurves.techCurve_AM)AS m_AM_aut
+FROM emp_isic4_isco_sex
+JOIN model_t_index_aug2 ON model_t_index_aug2.isic_id = emp_isic4_isco_sex.isic_id AND model_t_index_aug2.isco_id=emp_isic4_isco_sex.isco_id
+JOIN model_t_index_aut3 ON model_t_index_aut3.isic_id = emp_isic4_isco_sex.isic_id AND model_t_index_aut3.isco_id=emp_isic4_isco_sex.isco_id
+JOIN world_techCurves ON world_techCurves.techCurve_year = emp_isic4_isco_sex.techCurve_year AND world_techCurves.tc_group = emp_isic4_isco_sex.tc_group
+WHERE emp_isic4_isco_sex.isic_id=model_t_index_aug2.isic_id AND emp_isic4_isco_sex.isco_id=model_t_index_aug2.isco_id AND emp_isic4_isco_sex.techCurve_year=world_techCurves.techCurve_year
+GROUP BY emp_isic4_isco_sex.country, emp_isic4_isco_sex.isic_id, emp_isic4_isco_sex.isco_id, emp_isic4_isco_sex.techCurve_year;
+
+
+
+
+
+
+
+
+
+
+
+
+
+# INDIA ONLY - DFAT
+
+
+# 1. Create Percent Table
+
+SELECT percent_isic_sex_india.country, percent_isic_sex_india.isic_id, percent_isco_sex_india.isco_id,
+  sum(percent_isic_sex_india.percent_emp_f+percent_isco_sex_india.percent_emp_f)/2 AS percent_employee_f,
+  sum(percent_isic_sex_india.percent_emp_m+percent_isco_sex_india.percent_emp_m)/2 AS percent_employee_m
+FROM percent_isic_sex_india
+JOIN percent_isco_sex_india ON percent_isco_sex_india.country = percent_isic_sex_india.country
+WHERE percent_isco_sex_india.country=percent_isic_sex_india.country
+GROUP BY percent_isic_sex_india.country, percent_isic_sex_india.isic_id, percent_isco_sex_india.isco_id
+
+
+# 2. Triangulate Sex into employment baseline (isic isco) data
+
+SELECT emp_isic4_isco.country, emp_isic4_isco.isic_version, emp_isic4_isco.isic_id, emp_isic4_isco.isco_version, emp_isic4_isco.isco_id, emp_isic4_isco.data_date,
+  emp_isic4_isco.no_employees AS no_employees_total,
+  round(sum(emp_isic4_isco.no_employees*percent_isic_isco_sex_india.percent_employee_f)) AS no_employees_f,
+  round(sum(emp_isic4_isco.no_employees*percent_isic_isco_sex_india.percent_employee_m)) AS no_employees_m,
+  emp_isic4_isco.techCurve_year, emp_isic4_isco.tc_group
+FROM emp_isic4_isco
+JOIN percent_isic_isco_sex_india ON percent_isic_isco_sex_india.country=emp_isic4_isco.country AND percent_isic_isco_sex_india.isic_id=emp_isic4_isco.isic_id AND percent_isic_isco_sex_india.isco_id=emp_isic4_isco.isco_id
+WHERE emp_isic4_isco.country=India
+GROUP BY emp_isic4_isco.country, emp_isic4_isco.isic_id, emp_isic4_isco.isco_id, emp_isic4_isco.techCurve_year;
+
+# 3. Triangulate GDP into employment baseline (isic isco) data
+
+SELECT emp_isic_isco_sex_india.country, emp_isic_isco_sex_india.isic_version, emp_isic_isco_sex_india.isic_id, emp_isic_isco_sex_india.isco_version, emp_isic_isco_sex_india.isco_id, emp_isic_isco_sex_india.data_date,
+  emp_isic_isco_sex_india.no_employees_total AS no_employees_total,
+  round(sum(emp_isic_isco_sex_india.no_employees_f*isic_gdp.per_domestic)) AS dom_employees_f,
+  round(sum(emp_isic_isco_sex_india.no_employees_m*isic_gdp.per_domestic)) AS dom_employees_m,
+  round(sum(emp_isic_isco_sex_india.no_employees_f*isic_gdp.per_export)) AS exp_employees_f,
+  round(sum(emp_isic_isco_sex_india.no_employees_m*isic_gdp.per_export)) AS exp_employees_m,
+  emp_isic_isco_sex_india.techCurve_year, emp_isic_isco_sex_india.tc_group
+FROM emp_isic_isco_sex_india
+JOIN isic_gdp ON isic_gdp.country=emp_isic_isco_sex_india.country AND isic_gdp.isic_id=emp_isic_isco_sex_india.isic_id
+GROUP BY emp_isic_isco_sex_india.country, emp_isic_isco_sex_india.isic_id, emp_isic_isco_sex_india.isco_id, emp_isic_isco_sex_india.techCurve_year;
+
+# 3. Model employment against Tech Curves and Model T Index  - TechCurve 2.0 (back a year) - Model 1.5 -
+
+      # A. Export
+
+SELECT emp_isic_isco_sex_gdp_india.techCurve_year, emp_isic_isco_sex_gdp_india.country, emp_isic_isco_sex_gdp_india.isic_id, emp_isic_isco_sex_gdp_india.isco_id,
+  emp_isic_isco_sex_gdp_india.exp_employees_f,
+  sum(model_t_index_aug2.atRisk_SAI_p*emp_isic_isco_sex_gdp_india.exp_employees_f*world_techCurves.techCurve_SAI)AS f_SAI_aug,
+  sum(model_t_index_aug2.atRisk_PAI_p*emp_isic_isco_sex_gdp_india.exp_employees_f*world_techCurves.techCurve_PAI)AS f_PAI_aug,
+  sum(model_t_index_aug2.atRisk_MR_p*emp_isic_isco_sex_gdp_india.exp_employees_f*world_techCurves.techCurve_MR)AS f_MR_aug,
+  sum(model_t_index_aug2.atRisk_FR_p*emp_isic_isco_sex_gdp_india.exp_employees_f*world_techCurves.techCurve_FR)AS f_FR_aug,
+  sum(model_t_index_aug2.atRisk_AM_p*emp_isic_isco_sex_gdp_india.exp_employees_f*world_techCurves.techCurve_AM)AS f_AM_aug,
+  sum(model_t_index_aut3.atRisk_SAI_p*emp_isic_isco_sex_gdp_india.exp_employees_f*world_techCurves.techCurve_SAI)AS f_SAI_aut,
+  sum(model_t_index_aut3.atRisk_PAI_p*emp_isic_isco_sex_gdp_india.exp_employees_f*world_techCurves.techCurve_PAI)AS f_PAI_aut,
+  sum(model_t_index_aut3.atRisk_MR_p*emp_isic_isco_sex_gdp_india.exp_employees_f*world_techCurves.techCurve_MR)AS f_MR_aut,
+  sum(model_t_index_aut3.atRisk_FR_p*emp_isic_isco_sex_gdp_india.exp_employees_f*world_techCurves.techCurve_FR)AS f_FR_aut,
+  sum(model_t_index_aut3.atRisk_AM_p*emp_isic_isco_sex_gdp_india.exp_employees_f*world_techCurves.techCurve_AM)AS f_AM_aut,
+  emp_isic_isco_sex_gdp_india.exp_employees_m,
+  sum(model_t_index_aug2.atRisk_SAI_p*emp_isic_isco_sex_gdp_india.exp_employees_m*world_techCurves.techCurve_SAI)AS m_SAI_aug,
+  sum(model_t_index_aug2.atRisk_PAI_p*emp_isic_isco_sex_gdp_india.exp_employees_m*world_techCurves.techCurve_PAI)AS m_PAI_aug,
+  sum(model_t_index_aug2.atRisk_MR_p*emp_isic_isco_sex_gdp_india.exp_employees_m*world_techCurves.techCurve_MR)AS m_MR_aug,
+  sum(model_t_index_aug2.atRisk_FR_p*emp_isic_isco_sex_gdp_india.exp_employees_m*world_techCurves.techCurve_FR)AS m_FR_aug,
+  sum(model_t_index_aug2.atRisk_AM_p*emp_isic_isco_sex_gdp_india.exp_employees_m*world_techCurves.techCurve_AM)AS m_AM_aug,
+  sum(model_t_index_aut3.atRisk_SAI_p*emp_isic_isco_sex_gdp_india.exp_employees_m*world_techCurves.techCurve_SAI)AS m_SAI_aut,
+  sum(model_t_index_aut3.atRisk_PAI_p*emp_isic_isco_sex_gdp_india.exp_employees_m*world_techCurves.techCurve_PAI)AS m_PAI_aut,
+  sum(model_t_index_aut3.atRisk_MR_p*emp_isic_isco_sex_gdp_india.exp_employees_m*world_techCurves.techCurve_MR)AS m_MR_aut,
+  sum(model_t_index_aut3.atRisk_FR_p*emp_isic_isco_sex_gdp_india.exp_employees_m*world_techCurves.techCurve_FR)AS m_FR_aut,
+  sum(model_t_index_aut3.atRisk_AM_p*emp_isic_isco_sex_gdp_india.exp_employees_m*world_techCurves.techCurve_AM)AS m_AM_aut
+FROM emp_isic_isco_sex_gdp_india
+JOIN model_t_index_aug2 ON model_t_index_aug2.isic_id = emp_isic_isco_sex_gdp_india.isic_id AND model_t_index_aug2.isco_id=emp_isic_isco_sex_gdp_india.isco_id
+JOIN model_t_index_aut3 ON model_t_index_aut3.isic_id = emp_isic_isco_sex_gdp_india.isic_id AND model_t_index_aut3.isco_id=emp_isic_isco_sex_gdp_india.isco_id
+JOIN world_techCurves ON world_techCurves.techCurve_year = emp_isic_isco_sex_gdp_india.techCurve_year
+WHERE world_techCurves.tc_group=0 AND emp_isic_isco_sex_gdp_india.isic_id=model_t_index_aug2.isic_id AND emp_isic_isco_sex_gdp_india.isco_id=model_t_index_aug2.isco_id AND emp_isic_isco_sex_gdp_india.isic_id=model_t_index_aut3.isic_id AND emp_isic_isco_sex_gdp_india.isco_id=model_t_index_aut3.isco_id AND emp_isic_isco_sex_gdp_india.techCurve_year=world_techCurves.techCurve_year
+GROUP BY emp_isic_isco_sex_gdp_india.country, emp_isic_isco_sex_gdp_india.isic_id, emp_isic_isco_sex_gdp_india.isco_id, emp_isic_isco_sex_gdp_india.techCurve_year;
+
+      # B. Domestic
+
+SELECT emp_isic_isco_sex_gdp_india.techCurve_year, emp_isic_isco_sex_gdp_india.country, emp_isic_isco_sex_gdp_india.isic_id, emp_isic_isco_sex_gdp_india.isco_id,
+  emp_isic_isco_sex_gdp_india.dom_employees_f,
+  sum(model_t_index_aug2.atRisk_SAI_p*emp_isic_isco_sex_gdp_india.dom_employees_f*world_techCurves.techCurve_SAI)AS f_SAI_aug,
+  sum(model_t_index_aug2.atRisk_PAI_p*emp_isic_isco_sex_gdp_india.dom_employees_f*world_techCurves.techCurve_PAI)AS f_PAI_aug,
+  sum(model_t_index_aug2.atRisk_MR_p*emp_isic_isco_sex_gdp_india.dom_employees_f*world_techCurves.techCurve_MR)AS f_MR_aug,
+  sum(model_t_index_aug2.atRisk_FR_p*emp_isic_isco_sex_gdp_india.dom_employees_f*world_techCurves.techCurve_FR)AS f_FR_aug,
+  sum(model_t_index_aug2.atRisk_AM_p*emp_isic_isco_sex_gdp_india.dom_employees_f*world_techCurves.techCurve_AM)AS f_AM_aug,
+  sum(model_t_index_aut3.atRisk_SAI_p*emp_isic_isco_sex_gdp_india.dom_employees_f*world_techCurves.techCurve_SAI)AS f_SAI_aut,
+  sum(model_t_index_aut3.atRisk_PAI_p*emp_isic_isco_sex_gdp_india.dom_employees_f*world_techCurves.techCurve_PAI)AS f_PAI_aut,
+  sum(model_t_index_aut3.atRisk_MR_p*emp_isic_isco_sex_gdp_india.dom_employees_f*world_techCurves.techCurve_MR)AS f_MR_aut,
+  sum(model_t_index_aut3.atRisk_FR_p*emp_isic_isco_sex_gdp_india.dom_employees_f*world_techCurves.techCurve_FR)AS f_FR_aut,
+  sum(model_t_index_aut3.atRisk_AM_p*emp_isic_isco_sex_gdp_india.dom_employees_f*world_techCurves.techCurve_AM)AS f_AM_aut,
+  emp_isic_isco_sex_gdp_india.dom_employees_m,
+  sum(model_t_index_aug2.atRisk_SAI_p*emp_isic_isco_sex_gdp_india.dom_employees_m*world_techCurves.techCurve_SAI)AS m_SAI_aug,
+  sum(model_t_index_aug2.atRisk_PAI_p*emp_isic_isco_sex_gdp_india.dom_employees_m*world_techCurves.techCurve_PAI)AS m_PAI_aug,
+  sum(model_t_index_aug2.atRisk_MR_p*emp_isic_isco_sex_gdp_india.dom_employees_m*world_techCurves.techCurve_MR)AS m_MR_aug,
+  sum(model_t_index_aug2.atRisk_FR_p*emp_isic_isco_sex_gdp_india.dom_employees_m*world_techCurves.techCurve_FR)AS m_FR_aug,
+  sum(model_t_index_aug2.atRisk_AM_p*emp_isic_isco_sex_gdp_india.dom_employees_m*world_techCurves.techCurve_AM)AS m_AM_aug,
+  sum(model_t_index_aut3.atRisk_SAI_p*emp_isic_isco_sex_gdp_india.dom_employees_m*world_techCurves.techCurve_SAI)AS m_SAI_aut,
+  sum(model_t_index_aut3.atRisk_PAI_p*emp_isic_isco_sex_gdp_india.dom_employees_m*world_techCurves.techCurve_PAI)AS m_PAI_aut,
+  sum(model_t_index_aut3.atRisk_MR_p*emp_isic_isco_sex_gdp_india.dom_employees_m*world_techCurves.techCurve_MR)AS m_MR_aut,
+  sum(model_t_index_aut3.atRisk_FR_p*emp_isic_isco_sex_gdp_india.dom_employees_m*world_techCurves.techCurve_FR)AS m_FR_aut,
+  sum(model_t_index_aut3.atRisk_AM_p*emp_isic_isco_sex_gdp_india.dom_employees_m*world_techCurves.techCurve_AM)AS m_AM_aut
+FROM emp_isic_isco_sex_gdp_india
+JOIN model_t_index_aug2 ON model_t_index_aug2.isic_id = emp_isic_isco_sex_gdp_india.isic_id AND model_t_index_aug2.isco_id=emp_isic_isco_sex_gdp_india.isco_id
+JOIN model_t_index_aut3 ON model_t_index_aut3.isic_id = emp_isic_isco_sex_gdp_india.isic_id AND model_t_index_aut3.isco_id=emp_isic_isco_sex_gdp_india.isco_id
+JOIN world_techCurves ON world_techCurves.techCurve_year = emp_isic_isco_sex_gdp_india.techCurve_year AND world_techCurves.tc_group = emp_isic_isco_sex_gdp_india.tc_group
+WHERE emp_isic_isco_sex_gdp_india.isic_id=model_t_index_aug2.isic_id AND emp_isic_isco_sex_gdp_india.isco_id=model_t_index_aug2.isco_id AND emp_isic_isco_sex_gdp_india.isic_id=model_t_index_aut3.isic_id AND emp_isic_isco_sex_gdp_india.isco_id=model_t_index_aut3.isco_id AND emp_isic_isco_sex_gdp_india.techCurve_year=world_techCurves.techCurve_year AND world_techCurves.tc_group = emp_isic_isco_sex_gdp_india.tc_group
+GROUP BY emp_isic_isco_sex_gdp_india.country, emp_isic_isco_sex_gdp_india.isic_id, emp_isic_isco_sex_gdp_india.isco_id, emp_isic_isco_sex_gdp_india.techCurve_year;
+
+
+# 4. Combine Export and Import Tables with Dim Names to replace codes
+
+SELECT fwi_india_dom.techCurve_year, fwi_india_dom.country, dim_isic4.isic_name, dim_isco.isco_name,
+  sum(fwi_india_dom.dom_employees_f + fwi_india_exp.exp_employees_f) AS employees_f,
+  sum(fwi_india_dom.f_SAI_aug + fwi_india_exp.f_SAI_aug)             AS f_SAI_aug,
+  sum(fwi_india_dom.f_PAI_aug + fwi_india_exp.f_SAI_aug)             AS f_PAI_aug,
+  sum(fwi_india_dom.f_MR_aug + fwi_india_exp.f_SAI_aug)              AS f_MR_aug,
+  sum(fwi_india_dom.f_FR_aug + fwi_india_exp.f_SAI_aug)              AS f_FR_aug,
+  sum(fwi_india_dom.f_AM_aug + fwi_india_exp.f_SAI_aug)              AS f_AM_aug,
+  sum(fwi_india_dom.f_SAI_aut + fwi_india_exp.f_SAI_aut)             AS f_SAI_aut,
+  sum(fwi_india_dom.f_PAI_aut + fwi_india_exp.f_PAI_aut)             AS f_PAI_aut,
+  sum(fwi_india_dom.f_MR_aut + fwi_india_exp.f_MR_aut)               AS f_MR_aut,
+  sum(fwi_india_dom.f_FR_aut + fwi_india_exp.f_FR_aut)               AS f_FR_aut,
+  sum(fwi_india_dom.f_AM_aut + fwi_india_exp.f_AM_aut)               AS f_AM_aut,
+  sum(fwi_india_dom.dom_employees_m + fwi_india_exp.exp_employees_m) AS employees_m,
+  sum(fwi_india_dom.m_SAI_aug + fwi_india_exp.m_SAI_aug)             AS m_SAI_aug,
+  sum(fwi_india_dom.m_PAI_aug + fwi_india_exp.m_SAI_aug)             AS m_PAI_aug,
+  sum(fwi_india_dom.m_MR_aug + fwi_india_exp.m_SAI_aug)              AS m_MR_aug,
+  sum(fwi_india_dom.m_FR_aug + fwi_india_exp.m_SAI_aug)              AS m_FR_aug,
+  sum(fwi_india_dom.m_AM_aug + fwi_india_exp.m_SAI_aug)              AS m_AM_aug,
+  sum(fwi_india_dom.m_SAI_aut + fwi_india_exp.m_SAI_aut)             AS m_SAI_aut,
+  sum(fwi_india_dom.m_PAI_aut + fwi_india_exp.m_PAI_aut)             AS m_PAI_aut,
+  sum(fwi_india_dom.m_MR_aut + fwi_india_exp.m_MR_aut)               AS m_MR_aut,
+  sum(fwi_india_dom.m_FR_aut + fwi_india_exp.m_FR_aut)               AS m_FR_aut,
+  sum(fwi_india_dom.m_AM_aut + fwi_india_exp.m_AM_aut)               AS m_AM_aut
+FROM fwi_india_dom
+JOIN fwi_india_exp ON fwi_india_exp.isic_id = fwi_india_dom.isic_id AND fwi_india_exp.isco_id = fwi_india_dom.isco_id AND fwi_india_exp.techCurve_year = fwi_india_dom.techCurve_year
+JOIN dim_isic4 ON dim_isic4.isic_id = fwi_india_dom.isic_id AND dim_isic4.isic_id = fwi_india_exp.isic_id
+JOIN dim_isco ON dim_isco.isco_id = fwi_india_dom.isco_id AND dim_isco.isco_id = fwi_india_exp.isco_id
+GROUP BY fwi_india_dom.country, fwi_india_dom.isic_id, fwi_india_dom.isco_id, fwi_india_dom.techCurve_year;
+
+
+
+
+
+
+
+# SINGAPORE ONLY - TechCurve 2.0 - Job Model 1.5 -
+
+SELECT emp_isic4_isco_sex_sing.techCurve_year, emp_isic4_isco_sex_sing.country, dim_isic4.isic_name, dim_isco.isco_name,
+  emp_isic4_isco_sex_sing.no_employees_f,
+  sum(model_t_index_aug2.atRisk_SAI_p*emp_isic4_isco_sex_sing.no_employees_f*world_techCurves.techCurve_SAI)AS f_SAI_aug,
+  sum(model_t_index_aug2.atRisk_PAI_p*emp_isic4_isco_sex_sing.no_employees_f*world_techCurves.techCurve_PAI)AS f_PAI_aug,
+  sum(model_t_index_aug2.atRisk_MR_p*emp_isic4_isco_sex_sing.no_employees_f*world_techCurves.techCurve_MR)AS f_MR_aug,
+  sum(model_t_index_aug2.atRisk_FR_p*emp_isic4_isco_sex_sing.no_employees_f*world_techCurves.techCurve_FR)AS f_FR_aug,
+  sum(model_t_index_aug2.atRisk_AM_p*emp_isic4_isco_sex_sing.no_employees_f*world_techCurves.techCurve_AM)AS f_AM_aug,
+  sum(model_t_index_aut2.atRisk_SAI_p*emp_isic4_isco_sex_sing.no_employees_f*world_techCurves.techCurve_SAI)AS f_SAI_aut,
+  sum(model_t_index_aut2.atRisk_PAI_p*emp_isic4_isco_sex_sing.no_employees_f*world_techCurves.techCurve_PAI)AS f_PAI_aut,
+  sum(model_t_index_aut2.atRisk_MR_p*emp_isic4_isco_sex_sing.no_employees_f*world_techCurves.techCurve_MR)AS f_MR_aut,
+  sum(model_t_index_aut2.atRisk_FR_p*emp_isic4_isco_sex_sing.no_employees_f*world_techCurves.techCurve_FR)AS f_FR_aut,
+  sum(model_t_index_aut2.atRisk_AM_p*emp_isic4_isco_sex_sing.no_employees_f*world_techCurves.techCurve_AM)AS f_AM_aut,
+  emp_isic4_isco_sex_sing.no_employees_m,
+  sum(model_t_index_aug2.atRisk_SAI_p*emp_isic4_isco_sex_sing.no_employees_m*world_techCurves.techCurve_SAI)AS m_SAI_aug,
+  sum(model_t_index_aug2.atRisk_PAI_p*emp_isic4_isco_sex_sing.no_employees_m*world_techCurves.techCurve_PAI)AS m_PAI_aug,
+  sum(model_t_index_aug2.atRisk_MR_p*emp_isic4_isco_sex_sing.no_employees_m*world_techCurves.techCurve_MR)AS m_MR_aug,
+  sum(model_t_index_aug2.atRisk_FR_p*emp_isic4_isco_sex_sing.no_employees_m*world_techCurves.techCurve_FR)AS m_FR_aug,
+  sum(model_t_index_aug2.atRisk_AM_p*emp_isic4_isco_sex_sing.no_employees_m*world_techCurves.techCurve_AM)AS m_AM_aug,
+  sum(model_t_index_aut2.atRisk_SAI_p*emp_isic4_isco_sex_sing.no_employees_m*world_techCurves.techCurve_SAI)AS m_SAI_aut,
+  sum(model_t_index_aut2.atRisk_PAI_p*emp_isic4_isco_sex_sing.no_employees_m*world_techCurves.techCurve_PAI)AS m_PAI_aut,
+  sum(model_t_index_aut2.atRisk_MR_p*emp_isic4_isco_sex_sing.no_employees_m*world_techCurves.techCurve_MR)AS m_MR_aut,
+  sum(model_t_index_aut2.atRisk_FR_p*emp_isic4_isco_sex_sing.no_employees_m*world_techCurves.techCurve_FR)AS m_FR_aut,
+  sum(model_t_index_aut2.atRisk_AM_p*emp_isic4_isco_sex_sing.no_employees_m*world_techCurves.techCurve_AM)AS m_AM_aut
+FROM emp_isic4_isco_sex_sing
+JOIN model_t_index_aug2 ON model_t_index_aug2.isic_id = emp_isic4_isco_sex_sing.isic_id AND model_t_index_aug2.isco_id=emp_isic4_isco_sex_sing.isco_id
+JOIN model_t_index_aut2 ON model_t_index_aut2.isic_id = emp_isic4_isco_sex_sing.isic_id AND model_t_index_aut2.isco_id=emp_isic4_isco_sex_sing.isco_id
+JOIN world_techCurves ON world_techCurves.techCurve_year = emp_isic4_isco_sex_sing.techCurve_year AND world_techCurves.tc_group = emp_isic4_isco_sex_sing.tc_group
+JOIN dim_isic4 ON dim_isic4.isic_id=emp_isic4_isco_sex_sing.isic_id AND dim_isic4.isic_id=emp_isic4_isco_sex_sing.isic_id
+JOIN dim_isco ON dim_isco.isco_id=emp_isic4_isco_sex_sing.isco_id AND dim_isco.isco_id=emp_isic4_isco_sex_sing.isco_id
+WHERE emp_isic4_isco_sex_sing.isic_id=model_t_index_aug2.isic_id AND emp_isic4_isco_sex_sing.isco_id=model_t_index_aug2.isco_id AND emp_isic4_isco_sex_sing.isic_id=model_t_index_aut2.isic_id AND emp_isic4_isco_sex_sing.isco_id=model_t_index_aut2.isco_id AND emp_isic4_isco_sex_sing.techCurve_year=world_techCurves.techCurve_year AND emp_isic4_isco_sex_sing.tc_group=world_techCurves.tc_group
+GROUP BY emp_isic4_isco_sex_sing.country, emp_isic4_isco_sex_sing.isic_id, emp_isic4_isco_sex_sing.isco_id, emp_isic4_isco_sex_sing.techCurve_year;
+
+
